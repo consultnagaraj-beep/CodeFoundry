@@ -73,5 +73,23 @@ namespace CodeFoundry.Generator.UI
                 lst.Items.Add(c.ColumnName, preSelected.Contains(c.ColumnName));
             }
         }
+
+        private void InitializeComponent()
+        {
+            this.SuspendLayout();
+            // 
+            // FkColumnSelectorForm
+            // 
+            this.ClientSize = new System.Drawing.Size(278, 244);
+            this.Name = "FkColumnSelectorForm";
+            this.Load += new System.EventHandler(this.FkColumnSelectorForm_Load);
+            this.ResumeLayout(false);
+
+        }
+
+        private void FkColumnSelectorForm_Load(object sender, EventArgs e)
+        {
+
+        }
     }
 }

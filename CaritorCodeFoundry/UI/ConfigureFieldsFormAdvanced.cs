@@ -1,4 +1,5 @@
-﻿using System;
+﻿// ⚠ FULL FILE – DO NOT MERGE – REPLACE COMPLETELY
+using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
@@ -12,9 +13,10 @@ namespace CodeFoundry.Generator.UI
     {
         private ComboBox cmbGridType;
         private CheckBox chkShowSelectedOnly;
+        private CheckBox chkShowUnselectedOnly;
         private Button btnSelectAll;
         private Button btnSort;
-        private Button btnValidation; // 🔴 NEW
+        private Button btnValidation;
         private DataGridView dgv;
         private Button btnApply;
         private Button btnCancel;
@@ -25,7 +27,7 @@ namespace CodeFoundry.Generator.UI
         private string _connectionString;
 
         private readonly string[] GridTypes = { "EditGrid", "InfoGrid", "DropDownGrid", "Normal" };
-        private readonly string[] ControlTypes = { "TextBox", "Number", "Date", "DropDown" };
+        private readonly string[] ControlTypes = { "TextBox", "Number", "Date", "DropDown", "Label" };
 
         public ConfigureFieldsFormAdvanced()
         {
@@ -34,8 +36,8 @@ namespace CodeFoundry.Generator.UI
 
         public void Initialize(TableSchemaDto schema, SelectionDto selection, string connectionString)
         {
-            _schema = schema ?? throw new ArgumentNullException(nameof(schema));
-            _selection = selection ?? new SelectionDto();
+            _schema = schema;
+            _selection = selection;
             _connectionString = connectionString;
 
             cmbGridType.Items.Clear();
@@ -54,7 +56,6 @@ namespace CodeFoundry.Generator.UI
         private void BuildUI()
         {
             Text = "Configure Grid Fields";
-            StartPosition = FormStartPosition.CenterParent;
             WindowState = FormWindowState.Maximized;
 
             cmbGridType = new ComboBox { Left = 12, Top = 12, Width = 200, DropDownStyle = ComboBoxStyle.DropDownList };
@@ -66,26 +67,31 @@ namespace CodeFoundry.Generator.UI
             };
 
             chkShowSelectedOnly = new CheckBox { Left = 230, Top = 15, Width = 220, Text = "Show only selected fields" };
-            chkShowSelectedOnly.CheckedChanged += (_, __) => LoadGrid();
+            chkShowSelectedOnly.CheckedChanged += ChkShowSelectedOnly_CheckedChanged;
 
-            btnSelectAll = new Button { Text = "Select All", Left = 470, Top = 10, Width = 100 };
+
+            chkShowUnselectedOnly = new CheckBox
+            {
+                Left = chkShowSelectedOnly.Right + 50,
+                Top = chkShowSelectedOnly.Top,
+                Width = 240,
+                Text = "Show only unselected fields"
+                
+            };
+
+            chkShowUnselectedOnly.CheckedChanged += ChkShowUnselectedOnly_CheckedChanged;
+            int actionLeft = chkShowUnselectedOnly.Right + 15;
+            btnSelectAll = new Button { Text = "Select All", Left = actionLeft, Top = 10, Width = 100 };
             btnSelectAll.Click += (_, __) =>
             {
                 foreach (DataGridViewRow r in dgv.Rows)
                     r.Cells["Use"].Value = true;
             };
 
-            btnSort = new Button { Text = "Sort (Group → Order)", Left = 580, Top = 10, Width = 160 };
+            btnSort = new Button { Text = "Sort (Group → Order)", Left = btnSelectAll.Right + 10, Top = 10, Width = 160 };
             btnSort.Click += (_, __) => SortGrid();
 
-            btnValidation = new Button // 🔴 NEW
-            {
-                Text = "Validations...",
-                Left = 750,
-                Top = 10,
-                Width = 140,
-                Enabled = false
-            };
+            btnValidation = new Button { Text = "Validations...", Left = btnSort.Right + 10, Top = 10, Width = 140 };
             btnValidation.Click += (_, __) => OpenValidationPopup();
 
             dgv = new DataGridView
@@ -98,10 +104,10 @@ namespace CodeFoundry.Generator.UI
                 AllowUserToAddRows = false,
                 AllowUserToDeleteRows = false,
                 RowHeadersVisible = false,
-                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
-                SelectionMode = DataGridViewSelectionMode.FullRowSelect
+                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill
             };
 
+            dgv.CellContentClick += Dgv_CellContentClick;
             dgv.CellEndEdit += Dgv_CellEndEdit;
 
             btnApply = new Button { Text = "Apply", Width = 120, Anchor = AnchorStyles.Bottom | AnchorStyles.Right };
@@ -114,50 +120,148 @@ namespace CodeFoundry.Generator.UI
 
             Controls.AddRange(new Control[]
             {
-                cmbGridType,
-                chkShowSelectedOnly,
-                btnSelectAll,
-                btnSort,
-                btnValidation, // 🔴 NEW
-                dgv,
-                btnApply,
-                btnCancel
+                cmbGridType, chkShowSelectedOnly,chkShowUnselectedOnly, btnSelectAll,
+                btnSort, btnValidation, dgv, btnApply, btnCancel
             });
         }
 
         // =====================================================
-        // VALIDATION BUTTON LOGIC
-        // =====================================================
-        private void UpdateValidationButtonState()
-        {
-            btnValidation.Enabled = string.Equals(_gridType, "Normal", StringComparison.OrdinalIgnoreCase);
-        }
-
-        private void OpenValidationPopup()
-        {
-            // 🔴 SEED validation fields ONCE
-            if (_selection.Validation.Fields.Count == 0)
-            {
-                foreach (var col in _schema.Columns)
-                {
-                    if (!_selection.Validation.Fields.ContainsKey(col.ColumnName))
-                    {
-                        _selection.Validation.Fields[col.ColumnName] = new FieldValidation();
-                    }
-                }
-            }
-
-            using (var dlg = new ValidationConfigForm(_selection))
-            {
-                dlg.ShowDialog(this);
-            }
-        }
-
-
-
-        // =====================================================
         // GRID LOAD
         // =====================================================
+        //private void LoadGrid()
+        //{
+        //    BuildColumns();
+        //    dgv.Rows.Clear();
+
+        //    var selected = _selection.GetSelectedColumns(_gridType);
+        //    var hidden = _selection.GetHiddenColumns(_gridType);
+        //    var unhidable = _selection.GetUnhidableColumns(_gridType);
+        //    var validation = _selection.GetFieldValidation(_gridType);
+        //    var fkSelections = _selection.GetFkSelections(_gridType);
+
+        //    int orderNo = 1;
+
+        //    foreach (var col in _schema.Columns)
+        //    {
+        //        int r = dgv.Rows.Add();
+        //        var row = dgv.Rows[r];
+
+        //        row.Cells["FieldName"].Value = col.ColumnName;
+        //        row.Cells["Use"].Value = selected.Contains(col.ColumnName);
+        //        row.Cells["GroupNo"].Value = 1;
+        //        row.Cells["Order"].Value = orderNo++;
+        //        row.Cells["GroupTitle"].Value = "";
+        //        row.Cells["Hidden"].Value = hidden.Contains(col.ColumnName);
+        //        row.Cells["Unhidable"].Value = unhidable.Contains(col.ColumnName);
+        //        row.Cells["ControlType"].Value = "TextBox";
+        //        row.Cells["DropDown"].Value = false;
+        //        row.Cells["ReturnColumns"].Value = "";
+
+        //        if (fkSelections.TryGetValue(col.ColumnName, out var fkCols))
+        //        {
+        //            row.Cells["ControlType"].Value = "DropDown";
+        //            row.Cells["DropDown"].Value = true;
+        //            row.Cells["ReturnColumns"].Value = string.Join(",", fkCols);
+        //            InsertFkChildRows(r, col.ColumnName, fkCols);
+        //        }
+        //    }
+        //}
+        private void ChkShowSelectedOnly_CheckedChanged(object sender, EventArgs e)
+        {
+            if (chkShowSelectedOnly.Checked)
+                chkShowUnselectedOnly.Checked = false;
+
+            ApplyRowFilter();
+        }
+        private void ChkShowUnselectedOnly_CheckedChanged(object sender, EventArgs e)
+        {
+            if (chkShowUnselectedOnly.Checked)
+                chkShowSelectedOnly.Checked = false;
+
+            ApplyRowFilter();
+        }
+        private void ApplyRowFilter()
+        {
+            bool showSelected = chkShowSelectedOnly.Checked;
+            bool showUnselected = chkShowUnselectedOnly.Checked;
+
+            foreach (DataGridViewRow row in dgv.Rows)
+            {
+                if (row.IsNewRow)
+                    continue;
+
+                var fieldName = row.Cells["FieldName"].Value?.ToString();
+                if (string.IsNullOrWhiteSpace(fieldName))
+                    continue;
+
+                bool isSelected =
+                    Convert.ToBoolean(row.Cells["Use"].Value);
+
+                bool isFkChild =
+                    fieldName.Contains(".");
+
+                // Default: show everything
+                bool visible = true;
+
+                if (showSelected)
+                {
+                    // Selected + FK rows
+                    visible = isSelected || isFkChild;
+                }
+                else if (showUnselected)
+                {
+                    // Unselected rows ONLY
+                    // FK rows hidden to avoid confusion
+                    visible = !isSelected && !isFkChild;
+                }
+
+                row.Visible = visible;
+            }
+        }
+
+        private void ChkShowSelectedOnly_CheckedChangedOld(object sender, EventArgs e)
+        {
+            bool showOnlySelected = chkShowSelectedOnly.Checked;
+
+            foreach (DataGridViewRow row in dgv.Rows)
+            {
+                if (row.IsNewRow)
+                    continue;
+
+                var fieldName = row.Cells["FieldName"].Value?.ToString();
+                if (string.IsNullOrWhiteSpace(fieldName))
+                    continue;
+
+                bool isSelected =
+                    Convert.ToBoolean(row.Cells["Use"].Value);
+
+                bool isFkChild =
+                    fieldName.Contains(".");
+
+                if (showOnlySelected)
+                {
+                    // View filter ONLY — no state change
+                    row.Visible = isSelected || isFkChild;
+                }
+                else
+                {
+                    row.Visible = true;
+                }
+            }
+        }
+
+        private static string MakeFriendly(string columnName)
+        {
+            if (string.IsNullOrWhiteSpace(columnName))
+                return string.Empty;
+
+            return string.Join(" ",
+                columnName
+                    .Replace("_", " ")
+                    .Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries)
+                    .Select(w => char.ToUpper(w[0]) + w.Substring(1).ToLower()));
+        }
+
         private void LoadGrid()
         {
             BuildColumns();
@@ -167,128 +271,214 @@ namespace CodeFoundry.Generator.UI
             var hidden = _selection.GetHiddenColumns(_gridType);
             var unhidable = _selection.GetUnhidableColumns(_gridType);
             var validation = _selection.GetFieldValidation(_gridType);
+            var fkSelections = _selection.GetFkSelections(_gridType);
 
-            int rowNo = 1;
+            // NEW: display name metadata
+            var displayNames = _selection.GetDisplayNames(_gridType);
+
+            int orderNo = 1;
 
             foreach (var col in _schema.Columns)
             {
-                if (chkShowSelectedOnly.Checked && !selected.Contains(col.ColumnName)) continue;
-
                 int r = dgv.Rows.Add();
                 var row = dgv.Rows[r];
 
                 row.Cells["FieldName"].Value = col.ColumnName;
                 row.Cells["Use"].Value = selected.Contains(col.ColumnName);
-                row.Cells["DisplayName"].Value = col.ColumnName;
-
-                if (validation.TryGetValue(col.ColumnName, out var meta))
-                {
-                    row.Cells["GroupNo"].Value = meta["GroupNo"];
-                    row.Cells["Order"].Value = meta["Order"];
-                    row.Cells["GroupTitle"].Value = meta["GroupTitle"];
-                }
-                else
-                {
-                    row.Cells["GroupNo"].Value = 1;
-                    row.Cells["Order"].Value = rowNo;
-                    row.Cells["GroupTitle"].Value = "";
-                }
-
+                row.Cells["GroupNo"].Value = 1;
+                row.Cells["Order"].Value = orderNo++;
+                row.Cells["GroupTitle"].Value = "";
                 row.Cells["Hidden"].Value = hidden.Contains(col.ColumnName);
                 row.Cells["Unhidable"].Value = unhidable.Contains(col.ColumnName);
                 row.Cells["ControlType"].Value = "TextBox";
                 row.Cells["DropDown"].Value = false;
                 row.Cells["ReturnColumns"].Value = "";
-                row.Cells["FkPick"].Value = "";
 
-                rowNo++;
+                // ============================
+                // DISPLAY NAME HANDLING (NEW)
+                // ============================
+                bool isEdited = false;
+
+                string displayName;
+
+                SelectionDto.DisplayNameMeta dn;
+                if (displayNames.TryGetValue(col.ColumnName, out dn) &&
+                    !string.IsNullOrWhiteSpace(dn.DisplayName))
+                {
+                    displayName = dn.DisplayName;
+                }
+                else
+                {
+                    displayName = NamingHelper.ToDisplayName(col.ColumnName);
+                }
+
+                row.Cells["DisplayName"].Value = displayName;
+                row.Tag = new
+                {
+                    IsDisplayNameEdited = isEdited
+                };
+
+                // ============================
+                // FK HANDLING (UNCHANGED)
+                // ============================
+                if (fkSelections.TryGetValue(col.ColumnName, out var fkCols))
+                {
+                    row.Cells["ControlType"].Value = "DropDown";
+                    row.Cells["DropDown"].Value = true;
+                    row.Cells["ReturnColumns"].Value = string.Join(",", fkCols);
+
+                    InsertFkChildRows(r, col.ColumnName, fkCols);
+                }
             }
-
-            SortGrid();
-        }
-
-        private void BuildColumns()
-        {
-            dgv.Columns.Clear();
-            dgv.Columns.Add(TextCol("FieldName", "Field", true));
-            dgv.Columns.Add(CheckCol("Use", "Use"));
-            dgv.Columns.Add(TextCol("DisplayName", "Display Name"));
-            dgv.Columns.Add(TextCol("GroupNo", "Group No"));
-            dgv.Columns.Add(TextCol("GroupTitle", "Group Title"));
-            dgv.Columns.Add(TextCol("Order", "Order"));
-            dgv.Columns.Add(CheckCol("Hidden", "Hidden"));
-            dgv.Columns.Add(CheckCol("Unhidable", "Unhidable"));
-
-            dgv.Columns.Add(new DataGridViewComboBoxColumn
-            {
-                Name = "ControlType",
-                HeaderText = "Control",
-                DataSource = ControlTypes
-            });
-
-            dgv.Columns.Add(CheckCol("DropDown", "DropDown"));
-            dgv.Columns.Add(TextCol("ReturnColumns", "Return Columns"));
-
-            dgv.Columns.Add(new DataGridViewButtonColumn
-            {
-                Name = "FkPick",
-                HeaderText = "",
-                Text = "...",
-                UseColumnTextForButtonValue = true,
-                Width = 40
-            });
         }
 
         // =====================================================
-        // ORDER / GROUP RULE ENFORCEMENT
+        // FK CHILD ROWS
         // =====================================================
-        private void Dgv_CellEndEdit(object sender, DataGridViewCellEventArgs e)
+        private void InsertFkChildRows(int parentRowIndex, string fkField, List<string> fkCols)
         {
-            if (e.RowIndex < 0 || e.ColumnIndex < 0)
+            int insertAt = parentRowIndex + 1;
+
+            // Compute parent friendly name once
+            string parentDisplay =
+                NamingHelper.ToPascalCase(fkField);
+
+            foreach (var col in fkCols)
+            {
+                dgv.Rows.Insert(insertAt, 1);
+                var row = dgv.Rows[insertAt];
+
+                string childFriendly = MakeFriendly(col);
+
+                row.Cells["FieldName"].Value = fkField + "." + col;
+                row.Cells["Use"].Value = true;
+                row.Cells["GroupNo"].Value = 0;
+                row.Cells["Order"].Value = 0;
+                row.Cells["GroupTitle"].Value = "";
+                row.Cells["Hidden"].Value = true;
+                row.Cells["Unhidable"].Value = true;
+                row.Cells["ControlType"].Value = "Label";
+                row.Cells["DropDown"].Value = false;
+                row.Cells["ReturnColumns"].Value = "";
+
+                // =========================
+                // DISPLAY NAME (NEW)
+                // =========================
+                row.Cells["DisplayName"].Value =
+                    parentDisplay + " " + childFriendly;
+
+                // FK child rows are system-derived
+                row.ReadOnly = true;
+
+                insertAt++;
+            }
+        }
+
+        //private void InsertFkChildRows(int parentRowIndex, string fkField, List<string> fkCols)
+        //{
+        //    int insertAt = parentRowIndex + 1;
+
+        //    foreach (var col in fkCols)
+        //    {
+        //        dgv.Rows.Insert(insertAt, 1);
+        //        var row = dgv.Rows[insertAt];
+
+        //        row.Cells["FieldName"].Value = $"{fkField}.{col}";
+        //        row.Cells["Use"].Value = true;
+        //        row.Cells["GroupNo"].Value = 0;
+
+        //        row.Cells["Order"].Value = 0;
+        //        row.Cells["GroupTitle"].Value = "";
+        //        row.Cells["Hidden"].Value = true;
+        //        row.Cells["Unhidable"].Value = true;
+        //        row.Cells["ControlType"].Value = "Label";
+        //        row.Cells["DropDown"].Value = false;
+        //        row.Cells["ReturnColumns"].Value = "";
+        //        row.ReadOnly = true;
+
+        //        insertAt++;
+        //    }
+        //}
+
+        // =====================================================
+        // FK PICK
+        // =====================================================
+        private void Dgv_CellContentClick(object sender, DataGridViewCellEventArgs e)
+        {
+            if (e.RowIndex < 0 || dgv.Columns[e.ColumnIndex].Name != "FkPick")
                 return;
 
             var row = dgv.Rows[e.RowIndex];
+            var field = row.Cells["FieldName"].Value?.ToString();
+            if (string.IsNullOrEmpty(field)) return;
 
-            if (dgv.Columns[e.ColumnIndex].Name == "Order")
+            var fk = _schema.ForeignKeys.FirstOrDefault(x =>
+                string.Equals(x.ColumnName, field, StringComparison.OrdinalIgnoreCase));
+
+            if (fk == null) return;
+
+            var fkSchema =
+                SchemaReader.GetTableSchema(_connectionString, fk.ReferencedTable);
+
+            // Capture parent context BEFORE dialog
+            int parentRowIndex = e.RowIndex;
+
+            int parentGroupNo =
+                Convert.ToInt32(row.Cells["GroupNo"].Value);
+
+            int parentOrderNo =
+                Convert.ToInt32(row.Cells["Order"].Value);
+
+            // Get existing FK selections (IMPORTANT)
+            var fkMap = _selection.GetFkSelections(_gridType);
+            List<string> existingFkCols;
+            fkMap.TryGetValue(field, out existingFkCols);
+            string existingFkColsCsv =
+    existingFkCols != null
+        ? string.Join(",", existingFkCols)
+        : null;
+            using (var dlg = new FkColumnSelectorForm(
+                       fkSchema,
+                       fk.ReferencedTable,
+                       existingFkColsCsv))
             {
-                int order = IntVal(row, "Order");
+                if (dlg.ShowDialog() != DialogResult.OK)
+                    return;
 
-                if (order == 0)
-                    row.Cells["GroupNo"].Value = 0;
+                // -------------------------------
+                // Persist FK selection
+                // -------------------------------
+                fkMap[field] = dlg.SelectedColumns;
+                _selection.SetFkSelections(_gridType, fkMap);
 
-                // ❌ REMOVE SortGrid() FROM HERE
+                // -------------------------------
+                // Update parent row UI
+                // -------------------------------
+                row.Cells["ControlType"].Value = "DropDown";
+                row.Cells["DropDown"].Value = true;
+                row.Cells["ReturnColumns"].Value =
+                    string.Join(",", dlg.SelectedColumns);
+
+                // -------------------------------
+                // Apply FK rows with ordering
+                // -------------------------------
+                var ctx = new FkConfigContext
+                {
+                    GridType = _gridType,
+                    ParentFieldName = field,
+                    ParentRowIndex = parentRowIndex,
+                    ReferencedTableName=fk.ReferencedTable,
+                    ParentGroupNo = parentGroupNo,
+                    ParentOrderNo = parentOrderNo
+                };
+
+                ApplyFkSelection(ctx, dlg.SelectedColumns);
             }
         }
-
-
-
-        // =====================================================
-        // SORTING
-        // =====================================================
-        private void SortGrid()
+        private static bool IsFkChildRow(string fieldName, string parentField)
         {
-            var rows = dgv.Rows.Cast<DataGridViewRow>().ToList();
-
-            var active = rows
-                .Where(r => !(IntVal(r, "GroupNo") == 0 && IntVal(r, "Order") == 0))
-                .OrderBy(r => IntVal(r, "GroupNo") * 10000 + IntVal(r, "Order"))
-                .ToList();
-
-            var parked = rows
-                .Where(r => IntVal(r, "GroupNo") == 0 && IntVal(r, "Order") == 0)
-                .ToList();
-
-            dgv.Rows.Clear();
-            foreach (var r in active.Concat(parked))
-                dgv.Rows.Add(CloneRow(r));
-        }
-
-        private DataGridViewRow CloneRow(DataGridViewRow src)
-        {
-            var r = (DataGridViewRow)src.Clone();
-            for (int i = 0; i < src.Cells.Count; i++)
-                r.Cells[i].Value = src.Cells[i].Value;
-            return r;
+            return fieldName != null &&
+                   fieldName.StartsWith(parentField + ".", System.StringComparison.OrdinalIgnoreCase);
         }
 
         // =====================================================
@@ -303,7 +493,7 @@ namespace CodeFoundry.Generator.UI
 
             foreach (DataGridViewRow row in dgv.Rows)
             {
-                var field = Str(row, "FieldName");
+                var field = row.Cells["FieldName"].Value?.ToString();
                 if (string.IsNullOrEmpty(field)) continue;
 
                 int order = IntVal(row, "Order");
@@ -329,10 +519,217 @@ namespace CodeFoundry.Generator.UI
             DialogResult = DialogResult.OK;
             Close();
         }
+        private void ApplyFkSelection(
+    FkConfigContext ctx,
+    List<string> selectedFkColumns)
+        {
+            // -----------------------------------------
+            // 1. Remove existing FK child rows
+            // -----------------------------------------
+            for (int i = dgv.Rows.Count - 1; i >= 0; i--)
+            {
+                var row = dgv.Rows[i];
+                if (row.IsNewRow)
+                    continue;
+
+                var fieldName = row.Cells["FieldName"].Value?.ToString();
+                if (IsFkChildRow(fieldName, ctx.ParentFieldName))
+                {
+                    dgv.Rows.RemoveAt(i);
+                }
+            }
+
+            // -----------------------------------------
+            // 2. If no FK columns selected → done
+            // -----------------------------------------
+            if (selectedFkColumns == null || selectedFkColumns.Count == 0)
+                return;
+
+            // -----------------------------------------
+            // 3. Insert FK rows
+            // -----------------------------------------
+            int insertAt = ctx.ParentRowIndex + 1;
+            int currentOrder = ctx.ParentOrderNo;
+
+            bool isSystemGroup = ctx.ParentGroupNo == 0;
+
+            foreach (var col in selectedFkColumns)
+            {
+                dgv.Rows.Insert(insertAt, 1);
+                var row = dgv.Rows[insertAt];
+
+                row.Cells["FieldName"].Value =
+                    ctx.ParentFieldName + "." + col;
+
+                row.Cells["Use"].Value = true;
+                row.Cells["GroupNo"].Value = isSystemGroup ? 0 : ctx.ParentGroupNo;
+                row.Cells["Order"].Value = isSystemGroup ? 0 : ++currentOrder;
+                row.Cells["GroupTitle"].Value = "";
+                row.Cells["Hidden"].Value = false;
+                row.Cells["Unhidable"].Value = false;
+                row.Cells["ControlType"].Value = "TextBox";
+                row.Cells["DropDown"].Value = false;
+                row.Cells["ReturnColumns"].Value = "";
+
+                // ----------------------------
+                // DisplayName (FIXED)
+                // ----------------------------
+                row.Cells["DisplayName"].Value =
+    NamingHelper.ToDisplayName(
+        NamingHelper.ToPascalCase(ctx.ReferencedTableName)) +
+    " " +
+    NamingHelper.ToDisplayName(col);
+
+
+                row.ReadOnly = false;
+
+                insertAt++;
+            }
+
+            // -----------------------------------------
+            // 4. Recalculate Order for remaining rows
+            //    (ONLY same group, ONLY if GroupNo > 0)
+            // -----------------------------------------
+            if (!isSystemGroup)
+            {
+                for (int i = insertAt; i < dgv.Rows.Count; i++)
+                {
+                    var row = dgv.Rows[i];
+                    if (row.IsNewRow)
+                        continue;
+
+                    int groupNo =
+                        System.Convert.ToInt32(row.Cells["GroupNo"].Value);
+
+                    if (groupNo != ctx.ParentGroupNo)
+                        continue;
+
+                    row.Cells["Order"].Value = ++currentOrder;
+                }
+            }
+        }
 
         // =====================================================
         // HELPERS
         // =====================================================
+        private void BuildColumns()
+        {
+            dgv.Columns.Clear();
+            dgv.Columns.Add(TextCol("FieldName", "Field", true));
+            dgv.Columns.Add(CheckCol("Use", "Use"));
+            dgv.Columns.Add(TextCol("DisplayName", "DisplayName"));
+            dgv.Columns.Add(TextCol("GroupNo", "Group"));
+            dgv.Columns.Add(TextCol("Order", "Order"));
+            dgv.Columns.Add(TextCol("GroupTitle", "Group Title"));
+            dgv.Columns.Add(CheckCol("Hidden", "Hidden"));
+            dgv.Columns.Add(CheckCol("Unhidable", "Unhidable"));
+            dgv.Columns.Add(new DataGridViewComboBoxColumn { Name = "ControlType", HeaderText = "Control", DataSource = ControlTypes });
+            dgv.Columns.Add(CheckCol("DropDown", "DropDown"));
+            dgv.Columns.Add(TextCol("ReturnColumns", "Return Columns"));
+            dgv.Columns.Add(new DataGridViewButtonColumn { Name = "FkPick", Text = "...", UseColumnTextForButtonValue = true, Width = 40 });
+        }
+
+        private void SortGrid()
+        {
+            var rows = dgv.Rows
+                .Cast<DataGridViewRow>()
+                .Where(r => !r.IsNewRow)
+                .ToList();
+
+            var active = rows
+                .Where(r => !(IntVal(r, "GroupNo") == 0 && IntVal(r, "Order") == 0))
+                .OrderBy(r => IntVal(r, "GroupNo"))
+                .ThenBy(r => IntVal(r, "Order"))
+                .ToList();
+
+            var parked = rows
+                .Where(r => IntVal(r, "GroupNo") == 0 && IntVal(r, "Order") == 0)
+                .ToList();
+
+            dgv.Rows.Clear();
+            foreach (var r in active.Concat(parked))
+                dgv.Rows.Add(CloneRow(r));
+        }
+        private DataGridViewRow CloneRow(DataGridViewRow src)
+        {
+            var clone = (DataGridViewRow)src.Clone();
+
+            for (int i = 0; i < src.Cells.Count; i++)
+                clone.Cells[i].Value = src.Cells[i].Value;
+
+            return clone;
+        }
+
+        private void Dgv_CellEndEdit(object sender, DataGridViewCellEventArgs e)
+        {
+            if (e.RowIndex < 0 || e.ColumnIndex < 0)
+                return;
+
+            if (dgv.Columns[e.ColumnIndex].Name == "Order")
+            {
+                var row = dgv.Rows[e.RowIndex];
+                int order = IntVal(row, "Order");
+
+                if (order == 0)
+                    row.Cells["GroupNo"].Value = 0;
+            }
+        }
+
+        private void UpdateValidationButtonState()
+        {
+            btnValidation.Enabled =
+                string.Equals(_gridType, "Normal", StringComparison.OrdinalIgnoreCase);
+        }
+        private void OpenValidationPopup()
+        {
+            // -------------------------------------------------
+            // Build LIVE field snapshot from grid (NO Apply dependency)
+            // -------------------------------------------------
+            string fieldsCsv = string.Join(
+                ",",
+                dgv.Rows
+                    .Cast<DataGridViewRow>()
+                    .Where(r => !r.IsNewRow)
+                    .Where(r => Convert.ToBoolean(r.Cells["Use"].Value))
+                    .Where(r => !Convert.ToBoolean(r.Cells["Hidden"].Value))
+                    .Where(r => Convert.ToInt32(r.Cells["Order"].Value) > 0)
+                    .Where(r => !r.Cells["FieldName"].Value.ToString().Contains(".")) // exclude FK child rows
+                    .Select(r => r.Cells["FieldName"].Value.ToString())
+            );
+
+            // -------------------------------------------------
+            // DO NOT seed from schema here
+            // ValidationConfig will create entries lazily
+            // -------------------------------------------------
+
+            using (var dlg = new ValidationConfigForm(
+                _selection,
+                _gridType,
+                string.IsNullOrWhiteSpace(fieldsCsv) ? null : fieldsCsv))
+            {
+                dlg.ShowDialog(this);
+            }
+        }
+
+        //private void OpenValidationPopup()
+        //{
+        //    // Seed validation dictionary once
+        //    if (_selection.Validation.Fields.Count == 0)
+        //    {
+        //        foreach (var col in _schema.Columns)
+        //        {
+        //            if (!_selection.Validation.Fields.ContainsKey(col.ColumnName))
+        //                _selection.Validation.Fields[col.ColumnName] = new FieldValidation();
+        //        }
+        //    }
+
+        //    using (var dlg = new ValidationConfigForm(_selection,_gridType))
+        //    {
+        //        dlg.ShowDialog(this);
+        //    }
+        //}
+
+
         private static bool Bool(DataGridViewRow r, string c) => r.Cells[c].Value is bool b && b;
         private static string Str(DataGridViewRow r, string c) => r.Cells[c].Value?.ToString();
         private static int IntVal(DataGridViewRow r, string c) => int.TryParse(Str(r, c), out var v) ? v : 0;
@@ -343,4 +740,21 @@ namespace CodeFoundry.Generator.UI
         private static DataGridViewCheckBoxColumn CheckCol(string name, string header) =>
             new DataGridViewCheckBoxColumn { Name = name, HeaderText = header };
     }
+    public class FkConfigContext
+    {
+        public string GridType { get; set; }
+
+        public string ParentFieldName { get; set; }
+        // FK referenced table(e.g., Department)
+    public string ReferencedTableName { get; set; }
+
+        public int ParentRowIndex { get; set; }
+
+        public int ParentGroupNo { get; set; }
+
+        public int ParentOrderNo { get; set; }
+
+        public List<string> ExistingFkColumns { get; set; }
+    }
+
 }

@@ -92,6 +92,56 @@ namespace CodeFoundry.Generator.Models
             => GetOrEmptyMap(PerGridFieldOrder, gridType);
 
         // -------------------- Write helpers --------------------
+        // Stores display name metadata per grid type
+        private readonly Dictionary<string, Dictionary<string, DisplayNameMeta>>
+            _displayNames =
+                new Dictionary<string, Dictionary<string, DisplayNameMeta>>(
+                    StringComparer.OrdinalIgnoreCase);
+        //public string GetDisplayName(string field)
+        //{
+        //    if (DisplayNames.TryGetValue(field, out var dn))
+        //        return dn.DisplayName;
+
+        //    return null;
+        //}
+
+        //public IEnumerable<string> GetOrderedFieldsForValidation()
+        //{
+        //    return Fields
+        //        .Where(f => !HiddenFields.Contains(f.Key)) // exclude hidden
+        //        .OrderBy(f => f.Value.GroupNo)
+        //        .ThenBy(f => f.Value.Order)
+        //        .Select(f => f.Key);
+        //}
+        public IEnumerable<string> GetValidationFieldOrder(string gridType)
+        {
+            var selected = GetSelectedColumns(gridType);
+            var hidden = GetHiddenColumns(gridType);
+
+            // selected already preserves grid order in your design
+            foreach (var f in selected)
+            {
+                if (!hidden.Contains(f))
+                    yield return f;
+            }
+        }
+
+        public Dictionary<string, DisplayNameMeta> GetDisplayNames(string gridType)
+        {
+            if (!_displayNames.TryGetValue(gridType, out var dict))
+            {
+                dict = new Dictionary<string, DisplayNameMeta>(StringComparer.OrdinalIgnoreCase);
+                _displayNames[gridType] = dict;
+            }
+
+            return dict;
+        }
+
+        public class DisplayNameMeta
+        {
+            public string DisplayName { get; set; }
+            public bool IsEdited { get; set; }
+        }
 
         public void SetSelectedColumns(string gridType, List<string> columns)
         {

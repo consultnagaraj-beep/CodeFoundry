@@ -3,6 +3,7 @@ using System.Drawing;
 using System.Linq;
 using System.Windows.Forms;
 using CodeFoundry.Generator.Models;
+using CodeFoundry.Generator.Tools;
 
 namespace CodeFoundry.Generator.UI
 {
@@ -54,11 +55,62 @@ namespace CodeFoundry.Generator.UI
 
         private Button btnClose;
 
-        public ValidationConfigForm(SelectionDto selection)
+        private readonly string _gridType;
+        private readonly string[] _currentFields;
+
+        public ValidationConfigForm(
+            SelectionDto selection,
+            string gridType,
+            string fieldsCsv)
         {
             _selection = selection ?? throw new ArgumentNullException(nameof(selection));
+            _gridType = gridType;
+
+            _currentFields = string.IsNullOrWhiteSpace(fieldsCsv)
+                ? null
+                : fieldsCsv.Split(
+                    new[] { ',' },
+                    StringSplitOptions.RemoveEmptyEntries);
+
             BuildUI();
             LoadFields();
+        }
+        private string ResolveDisplayName(string field)
+        {
+            // Prefer DisplayName from SelectionDto for the current grid type
+            var map = _selection.GetDisplayNames(_gridType);
+            if (map != null &&
+                map.TryGetValue(field, out var meta) &&
+                !string.IsNullOrWhiteSpace(meta.DisplayName))
+            {
+                return meta.DisplayName;
+            }
+
+            // Fallback: make it human-readable
+            return NamingHelper.ToDisplayName(field);
+        }
+       
+
+
+        //public ValidationConfigForm(SelectionDto selection, string gridType,string fieldsCsv)
+        //{
+        //    _selection = selection ?? throw new ArgumentNullException(nameof(selection));
+        //    _gridType = gridType;
+        //    BuildUI();
+        //    LoadFields();
+        //}
+        private string GetDisplayName(string field)
+        {
+            var map = _selection.GetDisplayNames(_gridType);
+
+            if (map != null &&
+                map.TryGetValue(field, out var meta) &&
+                !string.IsNullOrWhiteSpace(meta.DisplayName))
+            {
+                return meta.DisplayName;
+            }
+
+            return field;
         }
 
         // =====================================================
@@ -219,19 +271,49 @@ namespace CodeFoundry.Generator.UI
                 if (c is ComboBox b) b.SelectedIndexChanged += (_, __) => SaveCurrent();
             }
         }
-
-        // =====================================================
-        // DATA
-        // =====================================================
         private void LoadFields()
         {
             lstFields.Items.Clear();
-            foreach (var f in _selection.Validation.Fields.Keys.OrderBy(x => x))
-                lstFields.Items.Add(f);
+
+            // ValidationConfig field list MUST come from live grid snapshot
+            // Hidden fields and FK child rows are already excluded upstream
+            if (_currentFields != null)
+            {
+                foreach (var f in _currentFields)
+                    lstFields.Items.Add(f);
+            }
 
             if (lstFields.Items.Count > 0)
                 lstFields.SelectedIndex = 0;
         }
+
+        //private void LoadFields()
+        //{
+        //    lstFields.Items.Clear();
+
+        //    // Use grid order, not alphabetical
+        //    var orderedFields =
+        //        _selection.GetValidationFieldOrder(_gridType); // see helper below
+
+        //    foreach (var f in orderedFields)
+        //        lstFields.Items.Add(f);
+
+        //    if (lstFields.Items.Count > 0)
+        //        lstFields.SelectedIndex = 0;
+        //}
+
+        // =====================================================
+        // DATA
+        // =====================================================
+        //private void LoadFields()
+        //{
+        //    lstFields.Items.Clear();
+        //    foreach (var f in _selection.Validation.Fields.Keys.OrderBy(x => x))
+        //        lstFields.Items.Add(f);
+
+        //    if (lstFields.Items.Count > 0)
+        //        lstFields.SelectedIndex = 0;
+        //}
 
         private void LoadFieldValidation()
         {
@@ -297,11 +379,46 @@ namespace CodeFoundry.Generator.UI
 
         private void AutoFillDefaults(string field, FieldValidation fv)
         {
-            if (fv.Ui.Required != null) return;
+            var displayName = ResolveDisplayName(field);
 
-            fv.Ui.Required = new RequiredRule { Enabled = false, Message = $"{field} is required" };
-            fv.Ui.MinLength = new LengthRule { Enabled = false, Value = 1, Message = $"{field} must have at least 1 character" };
+            // UI - Required
+            if (fv.Ui.Required == null)
+            {
+                fv.Ui.Required = new RequiredRule
+                {
+                    Enabled = false,
+                    Message = $"{displayName} is required"
+                };
+            }
+            else if (string.IsNullOrWhiteSpace(fv.Ui.Required.Message))
+            {
+                fv.Ui.Required.Message = $"{displayName} is required";
+            }
+
+            // UI - Min Length
+            if (fv.Ui.MinLength == null)
+            {
+                fv.Ui.MinLength = new LengthRule
+                {
+                    Enabled = false,
+                    Value = 1,
+                    Message = $"{displayName} must have at least 1 character"
+                };
+            }
+            else if (string.IsNullOrWhiteSpace(fv.Ui.MinLength.Message))
+            {
+                fv.Ui.MinLength.Message = $"{displayName} must have at least 1 character";
+            }
+
+            // DB - Unique (default only if empty)
+            if (fv.Db.Unique != null &&
+                string.IsNullOrWhiteSpace(fv.Db.Unique.Message))
+            {
+                fv.Db.Unique.Message = $"{displayName} already exists";
+            }
         }
+
+
 
         private FieldValidation GetOrCreate(string field)
         {

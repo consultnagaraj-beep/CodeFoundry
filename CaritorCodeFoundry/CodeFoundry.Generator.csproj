@@ -173,6 +173,9 @@
     <EmbeddedResource Include="UI\ConfigureFieldsFormAdvanced.resx">
       <DependentUpon>ConfigureFieldsFormAdvanced.cs</DependentUpon>
     </EmbeddedResource>
+    <EmbeddedResource Include="UI\FkColumnSelectorForm.resx">
+      <DependentUpon>FkColumnSelectorForm.cs</DependentUpon>
+    </EmbeddedResource>
     <None Include="packages.config" />
     <None Include="Properties\Settings.settings">
       <Generator>SettingsSingleFileGenerator</Generator>

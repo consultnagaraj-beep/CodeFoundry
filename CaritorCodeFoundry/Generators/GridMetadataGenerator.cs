@@ -45,6 +45,7 @@ namespace CodeFoundry.Generator.Generators
 
             var selectedFields = selection.GetSelectedColumns(gridType);
 
+            var displayNames = selection.GetDisplayNames(gridType);
             var hiddenFields = new HashSet<string>(
                 selection.GetHiddenColumns(gridType),
                 System.StringComparer.OrdinalIgnoreCase);
@@ -77,6 +78,18 @@ namespace CodeFoundry.Generator.Generators
 
                 int groupNo = GetInt(fieldValidation, "GroupNo", 1);
                 int orderNo = GetInt(fieldValidation, "Order", 0);
+                string displayName;
+
+                SelectionDto.DisplayNameMeta dn;
+                if (displayNames.TryGetValue(fieldName, out dn) &&
+                    !string.IsNullOrWhiteSpace(dn.DisplayName))
+                {
+                    displayName = dn.DisplayName;
+                }
+                else
+                {
+                    displayName = NamingHelper.ToDisplayName(fieldName);
+                }
 
                 bool isVisible =
                     groupNo != 0 &&
@@ -85,7 +98,7 @@ namespace CodeFoundry.Generator.Generators
                 sb.AppendLine("                new FieldMetaData");
                 sb.AppendLine("                {");
                 sb.AppendLine($"                    FieldName   = \"{fieldName}\",");
-                sb.AppendLine($"                    DisplayName = \"{NamingHelper.ToDisplayName(fieldName)}\",");
+                sb.AppendLine($"                    DisplayName = \"{displayName}\",");
                 sb.AppendLine($"                    IsVisible   = {isVisible.ToString().ToLower()},");
                 sb.AppendLine($"                    IsUnhidable = {unhidableFields.Contains(fieldName).ToString().ToLower()},");
                 sb.AppendLine($"                    Order       = {orderNo},");
