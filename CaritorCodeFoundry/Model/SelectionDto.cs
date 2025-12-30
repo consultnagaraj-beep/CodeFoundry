@@ -97,6 +97,10 @@ namespace CodeFoundry.Generator.Models
             _displayNames =
                 new Dictionary<string, Dictionary<string, DisplayNameMeta>>(
                     StringComparer.OrdinalIgnoreCase);
+        // ColumnName -> DataType (lowercase, mysql-style)
+        public Dictionary<string, string> ColumnDataTypes { get; }
+            = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
         //public string GetDisplayName(string field)
         //{
         //    if (DisplayNames.TryGetValue(field, out var dn))
@@ -275,6 +279,10 @@ namespace CodeFoundry.Generator.Models
         public LengthRule MinLength { get; set; }
         public LengthRule MaxLength { get; set; }
         public AllowedValuesRule AllowedValues { get; set; }
+
+        public string DateRuleType { get; set; }
+        public string DateRuleMessage { get; set; }
+
 
         // 🔴 ADD ONLY THESE TWO LINES
         public string PatternType { get; set; }      // Email / Mobile / PAN / etc

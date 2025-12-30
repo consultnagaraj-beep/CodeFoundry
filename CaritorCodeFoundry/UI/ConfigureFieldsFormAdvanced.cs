@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
 using System.Windows.Forms;
+using CaritorCodeFoundry.UI;
 using CodeFoundry.Generator.Models;
 using CodeFoundry.Generator.Tools;
 
@@ -11,6 +12,8 @@ namespace CodeFoundry.Generator.UI
 {
     public class ConfigureFieldsFormAdvanced : Form
     {
+        private Button btnPreview;
+
         private ComboBox cmbGridType;
         private CheckBox chkShowSelectedOnly;
         private CheckBox chkShowUnselectedOnly;
@@ -109,6 +112,19 @@ namespace CodeFoundry.Generator.UI
 
             dgv.CellContentClick += Dgv_CellContentClick;
             dgv.CellEndEdit += Dgv_CellEndEdit;
+            btnPreview = new Button { Text = "Preview", Width = 80, Anchor = AnchorStyles.Bottom | AnchorStyles.Right };
+            btnPreview.Location = new Point(ClientSize.Width - 360, ClientSize.Height - 60);
+            btnPreview.Click += BtnPreview_Click;
+
+            //btnPreview = new Button(Text = "Preview", Width = 120, Anchor = AnchorStyles.Bottom | AnchorStyles.Right);
+            //this.btnPreview.Location = new System.Drawing.Point(Width - 260, Height - 45);
+            //this.btnPreview.Name = "btnPreview";
+            //this.btnPreview.Size = new System.Drawing.Size(90, 28);
+            //this.btnPreview.Text = "Preview";
+            //this.btnPreview.UseVisualStyleBackColor = true;
+            //this.btnPreview.Click += new System.EventHandler(this.BtnPreview_Click);
+
+            this.Controls.Add(this.btnPreview);
 
             btnApply = new Button { Text = "Apply", Width = 120, Anchor = AnchorStyles.Bottom | AnchorStyles.Right };
             btnApply.Location = new Point(ClientSize.Width - 260, ClientSize.Height - 60);
@@ -123,6 +139,27 @@ namespace CodeFoundry.Generator.UI
                 cmbGridType, chkShowSelectedOnly,chkShowUnselectedOnly, btnSelectAll,
                 btnSort, btnValidation, dgv, btnApply, btnCancel
             });
+        }
+        private void BtnPreview_Click(object sender, EventArgs e)
+        {
+            // STEP-2 will go here
+            using (var dlg = new PreviewDialog())
+            {
+                dlg.ShowDialog(this);
+            }
+        }
+
+        private void SeedColumnDataTypes()
+        {
+            if (_selection.ColumnDataTypes.Count > 0)
+                return;
+
+            foreach (var col in _schema.Columns)
+            {
+                // Use DB-native datatype, normalized
+                _selection.ColumnDataTypes[col.ColumnName] =
+                    col.DataType.ToLowerInvariant();
+            }
         }
 
         // =====================================================
@@ -707,6 +744,8 @@ namespace CodeFoundry.Generator.UI
                 _gridType,
                 string.IsNullOrWhiteSpace(fieldsCsv) ? null : fieldsCsv))
             {
+                SeedColumnDataTypes();
+
                 dlg.ShowDialog(this);
             }
         }
