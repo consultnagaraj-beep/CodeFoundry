@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using CodeFoundry.Generator.Models;
 using CodeFoundry.Generator.Tools;
@@ -67,9 +68,38 @@ namespace CodeFoundry.Generator.Generators
             sb.AppendLine("        public List<FieldMetaData> Fields { get; } =");
             sb.AppendLine("            new List<FieldMetaData>");
             sb.AppendLine("            {");
-
             foreach (var fieldName in selectedFields)
             {
+                // -------------------------------------------------
+                // SKIP FK PARENT FIELD IF FK CHILD FIELDS EXIST
+                // -------------------------------------------------
+                if (!fieldName.Contains("."))
+                {
+                    bool hasFkChildren =
+                        selectedFields.Any(f =>
+                            f.StartsWith(fieldName + ".", System.StringComparison.OrdinalIgnoreCase));
+
+                    if (hasFkChildren)
+                        continue;
+                }
+
+                string effectiveFieldName = fieldName;
+
+                // -------------------------------------------------
+                // NORMALIZE FK CHILD FIELD NAME
+                // DivisionId.Code → DivisionCode
+                // -------------------------------------------------
+                if (fieldName.Contains("."))
+                {
+                    var parts = fieldName.Split('.');
+                    string parent = parts[0];
+                    string child = parts[1];
+
+                    effectiveFieldName =
+                        NamingHelper.ToPascalCase(parent.Replace("Id", "")) +
+                        NamingHelper.ToPascalCase(child);
+                }
+
                 Dictionary<string, string> fieldValidation;
                 validations.TryGetValue(fieldName, out fieldValidation);
 
@@ -78,8 +108,8 @@ namespace CodeFoundry.Generator.Generators
 
                 int groupNo = GetInt(fieldValidation, "GroupNo", 1);
                 int orderNo = GetInt(fieldValidation, "Order", 0);
-                string displayName;
 
+                string displayName;
                 SelectionDto.DisplayNameMeta dn;
                 if (displayNames.TryGetValue(fieldName, out dn) &&
                     !string.IsNullOrWhiteSpace(dn.DisplayName))
@@ -88,7 +118,7 @@ namespace CodeFoundry.Generator.Generators
                 }
                 else
                 {
-                    displayName = NamingHelper.ToDisplayName(fieldName);
+                    displayName = NamingHelper.ToDisplayName(effectiveFieldName);
                 }
 
                 bool isVisible =
@@ -97,7 +127,7 @@ namespace CodeFoundry.Generator.Generators
 
                 sb.AppendLine("                new FieldMetaData");
                 sb.AppendLine("                {");
-                sb.AppendLine($"                    FieldName   = \"{fieldName}\",");
+                sb.AppendLine($"                    FieldName   = \"{effectiveFieldName}\",");
                 sb.AppendLine($"                    DisplayName = \"{displayName}\",");
                 sb.AppendLine($"                    IsVisible   = {isVisible.ToString().ToLower()},");
                 sb.AppendLine($"                    IsUnhidable = {unhidableFields.Contains(fieldName).ToString().ToLower()},");
@@ -106,6 +136,45 @@ namespace CodeFoundry.Generator.Generators
                 sb.AppendLine($"                    Validation  = {GenerateValidationBlock(fieldValidation)}");
                 sb.AppendLine("                },");
             }
+
+            //foreach (var fieldName in selectedFields)
+            //{
+            //    Dictionary<string, string> fieldValidation;
+            //    validations.TryGetValue(fieldName, out fieldValidation);
+
+            //    string formula;
+            //    formulas.TryGetValue(fieldName, out formula);
+
+            //    int groupNo = GetInt(fieldValidation, "GroupNo", 1);
+            //    int orderNo = GetInt(fieldValidation, "Order", 0);
+            //    string displayName;
+
+            //    SelectionDto.DisplayNameMeta dn;
+            //    if (displayNames.TryGetValue(fieldName, out dn) &&
+            //        !string.IsNullOrWhiteSpace(dn.DisplayName))
+            //    {
+            //        displayName = dn.DisplayName;
+            //    }
+            //    else
+            //    {
+            //        displayName = NamingHelper.ToDisplayName(fieldName);
+            //    }
+
+            //    bool isVisible =
+            //        groupNo != 0 &&
+            //        !hiddenFields.Contains(fieldName);
+
+            //    sb.AppendLine("                new FieldMetaData");
+            //    sb.AppendLine("                {");
+            //    sb.AppendLine($"                    FieldName   = \"{fieldName}\",");
+            //    sb.AppendLine($"                    DisplayName = \"{displayName}\",");
+            //    sb.AppendLine($"                    IsVisible   = {isVisible.ToString().ToLower()},");
+            //    sb.AppendLine($"                    IsUnhidable = {unhidableFields.Contains(fieldName).ToString().ToLower()},");
+            //    sb.AppendLine($"                    Order       = {orderNo},");
+            //    sb.AppendLine($"                    Formula     = {(formula != null ? $"\"{formula}\"" : "null")},");
+            //    sb.AppendLine($"                    Validation  = {GenerateValidationBlock(fieldValidation)}");
+            //    sb.AppendLine("                },");
+            //}
 
             sb.AppendLine("            };");
             sb.AppendLine("    }");

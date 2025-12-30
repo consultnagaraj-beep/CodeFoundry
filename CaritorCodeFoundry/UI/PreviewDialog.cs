@@ -19,6 +19,9 @@ namespace CaritorCodeFoundry.UI
 
         private TextBox txtViewSql;
         private TextBox txtViewModel;
+        private TabPage tabMetaData;
+        private TextBox txtMetaData;
+
 
         private Button btnCopy;
         private Button btnClose;
@@ -47,6 +50,7 @@ namespace CaritorCodeFoundry.UI
 
             tabViewSql = new TabPage("View SQL");
             tabViewModel = new TabPage("ViewModel");
+            tabMetaData = new TabPage("MetaData");
 
             // -----------------------------
             // View SQL TextBox
@@ -59,9 +63,11 @@ namespace CaritorCodeFoundry.UI
             // -----------------------------
             txtViewModel = CreateCodeTextBox();
             tabViewModel.Controls.Add(txtViewModel);
-
+            txtMetaData = CreateCodeTextBox();
+            tabMetaData.Controls.Add(txtMetaData);
             tabControl.TabPages.Add(tabViewSql);
             tabControl.TabPages.Add(tabViewModel);
+            tabControl.TabPages.Add(tabMetaData);
 
             // -----------------------------
             // Bottom Panel
@@ -137,6 +143,11 @@ namespace CaritorCodeFoundry.UI
             {
                 Clipboard.SetText(txtViewModel.Text);
             }
+            else if (tabControl.SelectedTab == tabMetaData)
+            {
+                Clipboard.SetText(txtMetaData.Text);
+            }
+
         }
 
         // ---------------------------------
@@ -151,6 +162,11 @@ namespace CaritorCodeFoundry.UI
         {
             txtViewModel.Text = code ?? string.Empty;
         }
+        public void SetMetaData(string code)
+        {
+            txtMetaData.Text = code ?? string.Empty;
+        }
+
     }
 
 

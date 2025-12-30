@@ -11,6 +11,7 @@ using CodeFoundry.Core.Enums;
 using CodeFoundry.Core.Models;
 using CodeFoundry.Generator.Models;
 using CodeFoundry.Generator.Tools;
+using CodeFoundry.Generator.Generators;
 
 namespace CodeFoundry.Generator.UI
 {
@@ -376,6 +377,7 @@ namespace CodeFoundry.Generator.UI
 
         private void BtnPreview_Click(object sender, EventArgs e)
         {
+            ApplyChangesInternally();
             // STEP 1: Capture current UI state
             ConfigureFieldsState config = CaptureConfigureFieldsState();
 
@@ -392,15 +394,31 @@ namespace CodeFoundry.Generator.UI
             // STEP 2: Build View SQL using CORE builder
             //string viewSql = ViewSqlBuilderCore.Build(_schema, config);
             string viewSql = BuildInfoGridViewFromGrid();
-
-
+            //string viewSql = BuildInfoGridViewFromGrid();
+            string viewModel =
+              InfoGridViewModelBuilder.BuildInfoGridViewModel(_schema, dgv);
+            var metaFiles = GridMetadataGenerator.Generate(
+    _schema.TableName,
+    _selection);
+            string metaContent =
+    metaFiles
+        .Where(x => x.Key.EndsWith(
+            NamingHelper.ToPascalCase(_schema.TableName.Replace("tbl_", "")) +
+            _gridType +
+            "MetaData.cs"))
+        .Select(x => x.Value)
+        .FirstOrDefault();
             // STEP 3: Show Preview dialog
             using (var dlg = new PreviewDialog())
             {
                 dlg.SetViewSql(viewSql);
 
                 // ViewModel will be wired later
-                dlg.SetViewModel("-- ViewModel preview will be added next");
+                dlg.SetViewModel(viewModel);
+                //dlg.SetMetaData(
+                //InfoGridMetaDataBuilder.Build(_schema, dgv)
+                //);
+                dlg.SetMetaData(metaContent);
 
                 dlg.ShowDialog(this);
             }
@@ -777,9 +795,9 @@ namespace CodeFoundry.Generator.UI
         }
 
         // =====================================================
-        // APPLY
+        // APPLY Internal
         // =====================================================
-        private void ApplyChanges(object sender, EventArgs e)
+        private void ApplyChangesInternally()
         {
             var selected = new List<string>();
             var hidden = new List<string>();
@@ -811,6 +829,15 @@ namespace CodeFoundry.Generator.UI
             _selection.SetUnhidableColumns(_gridType, unhidable);
             _selection.SetFieldValidation(_gridType, validation);
 
+            //DialogResult = DialogResult.OK;
+            //Close();
+        }
+        // =====================================================
+        // APPLY
+        // =====================================================
+        private void ApplyChanges(object sender, EventArgs e)
+        {
+            ApplyChangesInternally();
             DialogResult = DialogResult.OK;
             Close();
         }

@@ -102,6 +102,7 @@
     <Compile Include="Generators\GridMetadataGenerator.cs" />
     <Compile Include="Generators\GridModelGenerator.cs" />
     <Compile Include="Generators\GridServiceGenerator.cs" />
+    <Compile Include="Generators\InfoGridViewModelBuilder.cs" />
     <Compile Include="Generators\ModelGenerator.cs" />
     <Compile Include="Generators\NormalMetaDataGenerator.cs" />
     <Compile Include="Generators\RepositoryGenerator.cs" />
@@ -140,6 +141,7 @@
     <Compile Include="Tools\NamingHelper.cs" />
     <Compile Include="Tools\SchemaReader.cs" />
     <Compile Include="Tools\TablePackageWriter.cs" />
+    <Compile Include="Tools\TypeMapper.cs" />
     <Compile Include="UI\ConfigureFieldsForm.cs">
       <SubType>Form</SubType>
     </Compile>
